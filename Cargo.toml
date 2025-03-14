@@ -1,0 +1,25 @@
+[package]
+name = "watcher"
+description = "subscribe data changes"
+version = "0.1.0"
+authors = ["Databend Authors <opensource@datafuselabs.com>"]
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+
+[dependencies]
+futures = "0.3.24"
+log = { version = "0.4.21", features = ["serde", "kv_unstable_std"] }
+span-map = { version = "0.2.0" }
+tokio = { version = "1.35.0", features = ["sync"] }
+tokio-util = { version = "0.7.13" }
+
+[dev-dependencies]
+anyhow = { version = "1.0.65" }
+# Enable other features for testing
+tokio = { version = "1.35.0", features = ["sync", "time", "macros", "rt"] }
+
+#[[example]]
+#name = "basic_usage"
+#path = "examples/basic_usage.rs"

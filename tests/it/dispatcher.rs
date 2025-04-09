@@ -177,10 +177,16 @@ async fn test_dispatcher_overlapping_ranges() {
     .await;
 
     let watcher1_clone = watcher1.clone();
-    handle.remove_watcher(watcher1_clone).await.unwrap();
+    handle
+        .remove_watcher(watcher1_clone.upgrade().unwrap())
+        .await
+        .unwrap();
 
     let watcher2_clone = watcher2.clone();
-    handle.remove_watcher(watcher2_clone).await.unwrap();
+    handle
+        .remove_watcher(watcher2_clone.upgrade().unwrap())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -229,8 +235,12 @@ async fn test_dispatcher_basic_functionality() {
     expect_no_event(&mut rx2, "w2 should not receive (filter excludes DELETE)").await;
 
     // Remove first watcher
+    let watcher1_strong = watcher1.upgrade().unwrap();
     let watcher1_clone = watcher1.clone();
-    handle.remove_watcher(watcher1_clone).await.unwrap();
+    handle
+        .remove_watcher(watcher1_clone.upgrade().unwrap())
+        .await
+        .unwrap();
 
     tokio::time::sleep(REMOVAL_DELAY).await;
     drop(rx1);
@@ -241,11 +251,17 @@ async fn test_dispatcher_basic_functionality() {
     // Verify watcher status
     let senders = all_senders(&handle).await;
     assert_eq!(senders.len(), 1);
-    assert!(!senders.contains(&watcher1), "w1 should be removed");
-    assert!(senders.contains(&watcher2), "w2 should still exist");
+    assert!(!senders.contains(&watcher1_strong), "w1 should be removed");
+    assert!(
+        senders.contains(&watcher2.upgrade().unwrap()),
+        "w2 should still exist"
+    );
 
     let watcher2_clone = watcher2.clone();
-    handle.remove_watcher(watcher2_clone).await.unwrap();
+    handle
+        .remove_watcher(watcher2_clone.upgrade().unwrap())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -272,13 +288,16 @@ async fn test_dispatcher_watch_senders() {
     let senders = all_senders(&handle).await;
     assert_eq!(senders.len(), 3);
     for watcher in &watchers {
-        assert!(senders.contains(watcher));
+        assert!(senders.contains(&watcher.upgrade().unwrap()));
     }
 
     // Clean up
     for watcher in watchers.clone() {
         let watcher_clone = watcher.clone();
-        handle.remove_watcher(watcher_clone).await.unwrap();
+        handle
+            .remove_watcher(watcher_clone.upgrade().unwrap())
+            .await
+            .unwrap();
     }
 
     let senders = all_senders(&handle).await;

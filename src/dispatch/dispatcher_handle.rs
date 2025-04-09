@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::sync::Weak;
 
 use log::error;
 use tokio::sync::mpsc;
@@ -65,7 +66,7 @@ where C: TypeConfig
         key_range: KeyRange<C>,
         filter: EventFilter,
         tx: mpsc::Sender<WatchResult<C>>,
-    ) -> Result<Arc<WatchStreamSender<C>>, &'static str> {
+    ) -> Result<Weak<WatchStreamSender<C>>, &'static str> {
         self.request_blocking(move |dispatcher| dispatcher.add_watcher(key_range, filter, tx))
             .await
             .map_err(|_| "Failed to add watcher; watch-Dispatcher may be closed")

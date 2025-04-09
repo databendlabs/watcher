@@ -16,6 +16,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
 
+use log::debug;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::SendError;
 
@@ -28,7 +29,6 @@ use crate::WatchResult;
 /// The stream sender is responsible for sending watch events through the stream
 /// to the client-side watcher. It encapsulates the communication channel between
 /// the server's event source and the client's watch request.
-#[derive(Clone)]
 pub struct WatchStreamSender<C>
 where C: TypeConfig
 {
@@ -36,11 +36,29 @@ where C: TypeConfig
     tx: mpsc::Sender<WatchResult<C>>,
 }
 
+impl<C> Drop for WatchStreamSender<C>
+where C: TypeConfig
+{
+    fn drop(&mut self) {
+        debug!("WatchStreamSender({:?}) dropped", self.desc,);
+    }
+}
+
 impl<C> fmt::Debug for WatchStreamSender<C>
 where C: TypeConfig
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "WatchStreamSender({:?})", self.desc)
+    }
+}
+
+impl<C> fmt::Display for WatchStreamSender<C>
+where
+    C: TypeConfig,
+    C::Key: fmt::Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "WatchStreamSender({})", self.desc)
     }
 }
 

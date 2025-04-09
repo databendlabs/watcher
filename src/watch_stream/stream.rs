@@ -18,6 +18,7 @@ use std::task::Context;
 use std::task::Poll;
 
 use futures::Stream;
+use log::debug;
 use tokio::sync::mpsc::Receiver;
 
 /// A wrapper around [`tokio::sync::mpsc::Receiver`] that implements [`Stream`].
@@ -35,6 +36,7 @@ impl<T> fmt::Debug for WatchStream<T> {
 
 impl<T> Drop for WatchStream<T> {
     fn drop(&mut self) {
+        debug!("WatchStream is dropped");
         let Some(on_drop) = self.on_drop.take() else {
             return;
         };

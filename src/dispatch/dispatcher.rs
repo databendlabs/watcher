@@ -14,7 +14,9 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use std::sync::Weak;
 
+use log::debug;
 use log::info;
 use log::warn;
 use span_map::SpanMap;
@@ -45,6 +47,14 @@ where C: TypeConfig
     watchers: SpanMap<C::Key, Arc<WatchStreamSender<C>>>,
 
     current_watcher_id: WatcherId,
+}
+
+impl<C> Drop for Dispatcher<C>
+where C: TypeConfig
+{
+    fn drop(&mut self) {
+        debug!("watch-event-Dispatcher is dropped");
+    }
 }
 
 impl<C> Dispatcher<C>
@@ -83,7 +93,7 @@ where C: TypeConfig
             }
         }
 
-        info!("watch-event-Dispatcher: all event senders are closed. quit.");
+        info!("watch-event-Dispatcher: all event senders are closed(dropped). quit");
     }
 
     /// Dispatch a kv change event to interested watchers.
@@ -97,7 +107,13 @@ where C: TypeConfig
 
         let mut removed = vec![];
 
+        debug!("watch-event-Dispatcher: dispatch event {:?}", kv_change);
+
         for sender in self.watchers.get(&kv_change.0) {
+            debug!(
+                "watch-event-Dispatcher: dispatch event to watcher {:?}",
+                sender
+            );
             let interested = sender.desc.interested;
 
             if !interested.accepts_event_type(event_type) {
@@ -107,8 +123,8 @@ where C: TypeConfig
             let resp = C::new_response(kv_change.clone());
             if let Err(_err) = sender.send(resp).await {
                 warn!(
-                    "watch-event-Dispatcher: fail to send to watcher {}; close this stream",
-                    sender.desc.watcher_id
+                    "watch-event-Dispatcher: fail to send to watcher {:?}; close this stream",
+                    sender
                 );
                 removed.push(sender.clone());
             };
@@ -124,7 +140,7 @@ where C: TypeConfig
         rng: KeyRange<C>,
         filter: EventFilter,
         tx: mpsc::Sender<WatchResult<C>>,
-    ) -> Arc<WatchStreamSender<C>> {
+    ) -> Weak<WatchStreamSender<C>> {
         info!(
             "watch-event-Dispatcher::add_watcher: range: {:?}, filter: {}",
             rng, filter
@@ -139,7 +155,7 @@ where C: TypeConfig
 
         C::update_watcher_metrics(1);
 
-        stream_sender
+        Arc::downgrade(&stream_sender)
     }
 
     fn new_watch_desc(&mut self, key_range: KeyRange<C>, interested: EventFilter) -> WatchDesc<C> {

@@ -23,6 +23,9 @@ pub mod type_config;
 pub mod util;
 pub mod watch_stream;
 
+#[cfg(test)]
+pub(crate) mod testing;
+
 use std::collections::Bound;
 
 pub use event_filter::EventFilter;

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::Bound;
+use std::fmt;
+
 use crate::event_filter::EventFilter;
 use crate::id::WatcherId;
 use crate::type_config::TypeConfig;
@@ -47,5 +50,76 @@ where C: TypeConfig
             interested,
             key_range,
         }
+    }
+}
+
+impl<C> fmt::Display for WatchDesc<C>
+where
+    C: TypeConfig,
+    C::Key: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(id:{} {} ", self.watcher_id, self.interested)?;
+
+        match &self.key_range.0 {
+            Bound::Included(v) => {
+                write!(f, "[{}", v)?;
+            }
+            Bound::Excluded(v) => {
+                write!(f, "({}", v)?;
+            }
+            Bound::Unbounded => {
+                write!(f, "(-∞")?;
+            }
+        }
+
+        match &self.key_range.1 {
+            Bound::Included(v) => {
+                write!(f, ", {}]", v)?;
+            }
+            Bound::Excluded(v) => {
+                write!(f, ", {})", v)?;
+            }
+            Bound::Unbounded => {
+                write!(f, ", +∞)")?;
+            }
+        }
+
+        write!(f, ")")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::Bound;
+
+    use super::*;
+    use crate::testing::UTTypes;
+
+    #[test]
+    fn test_watch_desc_display() {
+        let desc = WatchDesc::<UTTypes>::new(
+            1,
+            EventFilter::all(),
+            (
+                Bound::Included("a".to_string()),
+                Bound::Excluded("z".to_string()),
+            ),
+        );
+        assert_eq!(format!("{}", desc), r#"(id:1 update|delete [a, z))"#);
+
+        let desc = WatchDesc::<UTTypes>::new(
+            1,
+            EventFilter::delete(),
+            (Bound::Excluded("a".to_string()), Bound::Unbounded),
+        );
+        assert_eq!(format!("{}", desc), r#"(id:1 delete (a, +∞))"#);
+
+        let desc = WatchDesc::<UTTypes>::new(
+            1,
+            EventFilter::update(),
+            (Bound::Unbounded, Bound::Included("a".to_string())),
+        );
+        assert_eq!(format!("{}", desc), r#"(id:1 update (-∞, a])"#);
     }
 }

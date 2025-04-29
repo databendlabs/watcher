@@ -111,8 +111,8 @@ where C: TypeConfig
 
         for sender in self.watchers.get(&kv_change.0) {
             debug!(
-                "watch-event-Dispatcher: dispatch event to watcher {:?}",
-                sender
+                "watch-event-Dispatcher: dispatch event to watcher {:?}, kv_change: {:?}",
+                sender, kv_change
             );
             let interested = sender.desc.interested;
 

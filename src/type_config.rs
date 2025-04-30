@@ -16,6 +16,7 @@
 
 use std::error::Error;
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::future::Future;
 use std::io;
 
@@ -55,7 +56,7 @@ pub trait TypeConfig
 where Self: Debug + Clone + Copy + Sized + 'static
 {
     /// The type of keys that are watched.
-    type Key: Debug + Clone + Ord + Send + Sync + 'static;
+    type Key: Debug + Display + Clone + Ord + Send + Sync + 'static;
 
     /// The type of values that are watched.
     type Value: Debug + Clone + Send + Sync + 'static;

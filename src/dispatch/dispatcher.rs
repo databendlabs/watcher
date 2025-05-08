@@ -120,7 +120,7 @@ where C: TypeConfig
                 continue;
             }
 
-            let resp = C::new_response(kv_change.clone());
+            let resp = C::new_change_response(kv_change.clone());
             if let Err(_err) = sender.send(resp).await {
                 warn!(
                     "watch-event-Dispatcher: fail to send to watcher {:?}; close this stream",

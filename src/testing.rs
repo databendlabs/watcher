@@ -16,7 +16,9 @@ use std::future::Future;
 use std::io;
 
 use crate::type_config::KVChange;
+use crate::type_config::KeyOf;
 use crate::type_config::TypeConfig;
+use crate::type_config::ValueOf;
 
 // Only Debug is actually needed for the test framework
 #[derive(Debug, Copy, Clone)]
@@ -28,7 +30,11 @@ impl TypeConfig for UTTypes {
     type Response = (String, Option<String>, Option<String>);
     type Error = io::Error;
 
-    fn new_response(change: KVChange<Self>) -> Self::Response {
+    fn new_flush_response(key: KeyOf<Self>, value: ValueOf<Self>) -> Self::Response {
+        (key, None, Some(value))
+    }
+
+    fn new_change_response(change: KVChange<Self>) -> Self::Response {
         change
     }
 

@@ -34,8 +34,11 @@ use crate::WatchResult;
 /// Creates a Sink that converts key-seqv results to watch results.
 ///
 /// Wraps a tokio mpsc Sender in a Sink that can receive `KeySeqVResult` items.
-/// Each item is converted using `key_seqv_result_to_watch_result` before being sent.
-pub fn new_watch_sink<C>(
+/// Each item is converted before being sent.
+///
+/// This function is used for initial-flush, not for actual key-value change, i.e.,
+/// an actual key-value change contains 3 element: key, before-value and after-value.
+pub fn new_flush_sink<C>(
     tx: mpsc::Sender<WatchResult<C>>,
     ctx: &'static str,
 ) -> impl Sink<KVResult<C>, Error = PollSendError<WatchResult<C>>> + Send + 'static
@@ -47,7 +50,7 @@ where
     let snk = assert_sink::<WatchResult<C>, _, _>(snk);
 
     let snk = snk.with(move |res: KVResult<C>| {
-        let watch_result = key_seqv_result_to_watch_result::<C>(res, ctx);
+        let watch_result = kv_result_to_flush_result::<C>(res, ctx);
         futures::future::ready(Ok::<_, PollSendError<_>>(watch_result))
     });
 
@@ -83,15 +86,15 @@ where
     }
 }
 
-/// Converts a key-seqv result to a watch result.
+/// Converts a key-value result to a initial-flush watch result.
 ///
 /// Transforms a [`KVResult`] into a [`WatchResult`].
-/// Errors are logged with the provided context and converted to a gRPC Status.
-fn key_seqv_result_to_watch_result<C>(input: KVResult<C>, ctx: &'static str) -> WatchResult<C>
+/// Error is converted by the application defined method `data_error`
+fn kv_result_to_flush_result<C>(input: KVResult<C>, ctx: &'static str) -> WatchResult<C>
 where C: TypeConfig {
     match input {
-        Ok((key, seq_v)) => {
-            let resp = C::new_response((key, None, Some(seq_v)));
+        Ok((key, value)) => {
+            let resp = C::new_flush_response(key, value);
             Ok(resp)
         }
         Err(err) => {

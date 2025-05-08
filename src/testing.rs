@@ -30,7 +30,7 @@ impl TypeConfig for UTTypes {
     type Response = (String, Option<String>, Option<String>);
     type Error = io::Error;
 
-    fn new_flush_response(key: KeyOf<Self>, value: ValueOf<Self>) -> Self::Response {
+    fn new_initialize_response(key: KeyOf<Self>, value: ValueOf<Self>) -> Self::Response {
         (key, None, Some(value))
     }
 

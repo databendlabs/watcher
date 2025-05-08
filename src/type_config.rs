@@ -67,8 +67,8 @@ where Self: Debug + Clone + Copy + Sized + 'static
     /// The type of errors returned to watchers.
     type Error: Error + Send + 'static;
 
-    /// Create a new response instance from existent key value pair.
-    fn new_flush_response(key: KeyOf<Self>, value: ValueOf<Self>) -> Self::Response;
+    /// Create a new response instance from existent key value pair, for initialization.
+    fn new_initialize_response(key: KeyOf<Self>, value: ValueOf<Self>) -> Self::Response;
 
     /// Create a response instance from a key-value change.
     fn new_change_response(change: KVChange<Self>) -> Self::Response;

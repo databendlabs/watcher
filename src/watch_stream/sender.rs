@@ -40,6 +40,8 @@ impl<C> Drop for WatchStreamSender<C>
 where C: TypeConfig
 {
     fn drop(&mut self) {
+        C::update_watcher_metrics(-1);
+
         debug!("WatchStreamSender({:?}) dropped", self.desc,);
     }
 }
@@ -92,6 +94,7 @@ impl<C> WatchStreamSender<C>
 where C: TypeConfig
 {
     pub fn new(desc: WatchDesc<C>, tx: mpsc::Sender<WatchResult<C>>) -> Self {
+        C::update_watcher_metrics(1);
         WatchStreamSender { desc, tx }
     }
 

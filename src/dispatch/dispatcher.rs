@@ -153,8 +153,6 @@ where C: TypeConfig
         self.watchers
             .insert(stream_sender.desc.key_range.clone(), stream_sender.clone());
 
-        C::update_watcher_metrics(1);
-
         Arc::downgrade(&stream_sender)
     }
 
@@ -172,8 +170,6 @@ where C: TypeConfig
         );
 
         self.watchers.remove(.., stream_sender);
-
-        C::update_watcher_metrics(-1);
     }
 
     #[allow(clippy::mutable_key_type)]

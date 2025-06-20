@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use std::collections::BTreeSet;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Weak;
 
@@ -45,8 +47,6 @@ where C: TypeConfig
     rx: mpsc::UnboundedReceiver<Command<C>>,
 
     watchers: SpanMap<C::Key, Arc<WatchStreamSender<C>>>,
-
-    current_watcher_id: WatcherId,
 }
 
 impl<C> Drop for Dispatcher<C>
@@ -73,7 +73,6 @@ where C: TypeConfig
         let dispatcher = Dispatcher {
             rx,
             watchers: SpanMap::new(),
-            current_watcher_id: 1,
         };
 
         C::spawn(dispatcher.main());
@@ -135,6 +134,7 @@ where C: TypeConfig
         }
     }
 
+    /// Create and insert a new watch stream sender with the given key range and filter.
     pub fn add_watcher(
         &mut self,
         rng: KeyRange<C>,
@@ -146,9 +146,7 @@ where C: TypeConfig
             rng, filter
         );
 
-        let desc = self.new_watch_desc(rng, filter);
-
-        let stream_sender = Arc::new(WatchStreamSender::new(desc, tx));
+        let stream_sender = Self::new_watch_stream_sender(rng, filter, tx);
 
         self.watchers
             .insert(stream_sender.desc.key_range.clone(), stream_sender.clone());
@@ -156,11 +154,40 @@ where C: TypeConfig
         Arc::downgrade(&stream_sender)
     }
 
-    fn new_watch_desc(&mut self, key_range: KeyRange<C>, interested: EventFilter) -> WatchDesc<C> {
-        self.current_watcher_id += 1;
-        let watcher_id = self.current_watcher_id;
+    /// Create a new watch stream sender with the given key range and filter.
+    ///
+    /// It does not add the sender to the dispatcher, use `insert_stream_sender` to insert.
+    ///
+    /// Or use `add_watcher` as a combined function to create and insert the sender.
+    pub fn new_watch_stream_sender(
+        rng: KeyRange<C>,
+        filter: EventFilter,
+        tx: mpsc::Sender<WatchResult<C>>,
+    ) -> Arc<WatchStreamSender<C>> {
+        info!(
+            "watch-event-Dispatcher::new_stream_sender: range: {:?}, filter: {}",
+            rng, filter
+        );
 
+        let desc = Self::new_watch_desc(rng, filter);
+
+        Arc::new(WatchStreamSender::new(desc, tx))
+    }
+
+    /// Insert an existing watch stream sender into the dispatcher.
+    pub fn insert_watch_stream_sender(&mut self, stream_sender: Arc<WatchStreamSender<C>>) {
+        self.watchers
+            .insert(stream_sender.desc.key_range.clone(), stream_sender.clone());
+    }
+
+    fn new_watch_desc(key_range: KeyRange<C>, interested: EventFilter) -> WatchDesc<C> {
+        let watcher_id = Self::next_watcher_id();
         WatchDesc::new(watcher_id, interested, key_range)
+    }
+
+    fn next_watcher_id() -> WatcherId {
+        static NEXT_WATCHER_ID: AtomicU64 = AtomicU64::new(1u64);
+        NEXT_WATCHER_ID.fetch_add(1, Ordering::Relaxed) as i64
     }
 
     pub fn remove_watcher(&mut self, stream_sender: Arc<WatchStreamSender<C>>) {

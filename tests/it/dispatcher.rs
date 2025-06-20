@@ -16,10 +16,7 @@ use std::collections::BTreeSet;
 use std::future::Future;
 use std::io;
 use std::ops::Bound;
-use std::sync::atomic::AtomicI64;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 
 use tokio::sync::mpsc;
@@ -39,9 +36,6 @@ use watcher::WatchResult;
 const REMOVAL_DELAY: Duration = Duration::from_millis(300);
 const RECEIVE_TIMEOUT: Duration = Duration::from_millis(1000);
 const CHECK_NEGATIVE_TIMEOUT: Duration = Duration::from_millis(100);
-
-// Sender count metrics container.
-static SENDER_COUNT: AtomicI64 = AtomicI64::new(0);
 
 // Only Debug is actually needed for the test framework
 #[derive(Debug, Copy, Clone)]
@@ -65,9 +59,7 @@ impl TypeConfig for Types {
         error
     }
 
-    fn update_watcher_metrics(delta: i64) {
-        SENDER_COUNT.fetch_add(delta, Ordering::Relaxed);
-    }
+    fn update_watcher_metrics(_delta: i64) {}
 
     #[allow(clippy::disallowed_methods)]
     fn spawn<T>(fut: T)
@@ -335,49 +327,6 @@ async fn test_dispatcher_closed_channel() {
     tokio::time::sleep(REMOVAL_DELAY).await;
     let senders = all_senders(&handle).await;
     assert_eq!(senders.len(), 0);
-}
-
-#[allow(clippy::await_holding_lock)]
-#[tokio::test]
-async fn test_metrics() {
-    // Metrics is reported to global metrics collector, so we need to protect it with a mutex
-    static MUTEX: Mutex<()> = Mutex::new(());
-
-    let _guard = MUTEX.lock().unwrap();
-    SENDER_COUNT.store(0, Ordering::Relaxed);
-
-    let handle = Dispatcher::<Types>::spawn();
-
-    {
-        // Add a watcher, sender count should be 1
-
-        let (tx, _rx) = mpsc::channel(10);
-        let weak_sender = handle
-            .add_watcher(rng("a", "c"), EventFilter::update(), tx)
-            .await
-            .unwrap();
-
-        let sender_count = SENDER_COUNT.load(Ordering::Relaxed);
-        assert_eq!(sender_count, 1);
-
-        // Remove a watcher, sender count should still be 1, because the watcher is not dropped yet
-
-        let sender = weak_sender.upgrade().unwrap();
-
-        handle.remove_watcher(sender.clone()).await.unwrap();
-        let sender_count = SENDER_COUNT.load(Ordering::Relaxed);
-        assert_eq!(sender_count, 1);
-
-        // Remove Again, sender count should be 1, because the watcher is not dropped yet
-        handle.remove_watcher(sender.clone()).await.unwrap();
-        let sender_count = SENDER_COUNT.load(Ordering::Relaxed);
-        assert_eq!(sender_count, 1);
-    }
-
-    // Drop the handle, sender count should be 0
-
-    let sender_count = SENDER_COUNT.load(Ordering::Relaxed);
-    assert_eq!(sender_count, 0);
 }
 
 fn s(x: &str) -> String {

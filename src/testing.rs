@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
 use std::io;
 
 use crate::type_config::KVChange;
@@ -43,13 +42,4 @@ impl TypeConfig for UTTypes {
     }
 
     fn update_watcher_metrics(_delta: i64) {}
-
-    #[allow(clippy::disallowed_methods)]
-    fn spawn<T>(_fut: T)
-    where
-        T: Future + Send + 'static,
-        T::Output: Send + 'static,
-    {
-        todo!()
-    }
 }

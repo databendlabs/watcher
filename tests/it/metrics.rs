@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::Bound;
-use std::future::Future;
 use std::io;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
@@ -55,21 +54,13 @@ impl TypeConfig for Types {
     fn update_watcher_metrics(delta: i64) {
         SENDER_COUNT.fetch_add(delta, Ordering::Relaxed);
     }
-
-    #[allow(clippy::disallowed_methods)]
-    fn spawn<T>(fut: T)
-    where
-        T: Future + Send + 'static,
-        T::Output: Send + 'static,
-    {
-        tokio::spawn(fut);
-    }
 }
 
 #[allow(clippy::await_holding_lock)]
 #[tokio::test]
 async fn test_metrics() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     {
         // Add a watcher, sender count should be 1

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::BTreeSet;
-use std::future::Future;
 use std::io;
 use std::ops::Bound;
 use std::sync::Arc;
@@ -60,15 +59,6 @@ impl TypeConfig for Types {
     }
 
     fn update_watcher_metrics(_delta: i64) {}
-
-    #[allow(clippy::disallowed_methods)]
-    fn spawn<T>(fut: T)
-    where
-        T: Future + Send + 'static,
-        T::Output: Send + 'static,
-    {
-        tokio::spawn(fut);
-    }
 }
 
 async fn all_senders(handle: &DispatcherHandle<Types>) -> BTreeSet<Arc<WatchStreamSender<Types>>> {
@@ -103,7 +93,8 @@ async fn expect_no_event(rx: &mut mpsc::Receiver<WatchResult<Types>>, message: &
 
 #[tokio::test]
 async fn test_dispatcher_simple_watch() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     let (tx, mut rx) = mpsc::channel(10);
     let _watcher = handle
@@ -123,7 +114,8 @@ async fn test_dispatcher_simple_watch() {
 
 #[tokio::test]
 async fn test_dispatcher_multiple_events() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     let (tx, mut rx) = mpsc::channel(10);
     let _watcher = handle
@@ -150,7 +142,8 @@ async fn test_dispatcher_multiple_events() {
 
 #[tokio::test]
 async fn test_dispatcher_overlapping_ranges() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     let (tx1, mut rx1) = mpsc::channel(10);
     let watcher1 = handle
@@ -197,7 +190,8 @@ async fn test_dispatcher_overlapping_ranges() {
 
 #[tokio::test]
 async fn test_dispatcher_basic_functionality() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     // Set up watchers
     let (tx1, mut rx1) = mpsc::channel(10);
@@ -272,7 +266,8 @@ async fn test_dispatcher_basic_functionality() {
 
 #[tokio::test]
 async fn test_dispatcher_watch_senders() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     // Create three watchers with different ranges
     let watchers = [
@@ -312,7 +307,8 @@ async fn test_dispatcher_watch_senders() {
 
 #[tokio::test]
 async fn test_dispatcher_closed_channel() {
-    let handle = Dispatcher::<Types>::spawn();
+    let (handle, fut) = Dispatcher::<Types>::create();
+    tokio::spawn(fut);
 
     // Create and immediately close a channel
     let (tx, rx) = mpsc::channel(10);

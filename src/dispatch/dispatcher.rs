@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::BTreeSet;
+use std::future::Future;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -60,14 +61,21 @@ where C: TypeConfig
 impl<C> Dispatcher<C>
 where C: TypeConfig
 {
-    /// Spawn a dispatcher loop task.
+    /// Create a new dispatcher and its handle.
     ///
-    /// Creates a new [`Dispatcher`] instance and spawns it as an asynchronous task.
-    /// The dispatcher will process incoming commands and route watch events to the
-    /// appropriate subscribers.
+    /// Returns a tuple of the handle and the dispatcher's main loop future.
+    /// The caller is responsible for spawning the future on their chosen runtime.
     ///
-    /// Returns a handle that can be used to send commands to the dispatcher.
-    pub fn spawn() -> DispatcherHandle<C> {
+    /// # Example
+    ///
+    /// ```ignore
+    /// let (handle, fut) = Dispatcher::<MyTypes>::create();
+    /// tokio::spawn(fut);
+    /// ```
+    pub fn create() -> (
+        DispatcherHandle<C>,
+        impl Future<Output = ()> + Send + 'static,
+    ) {
         let (tx, rx) = mpsc::unbounded_channel();
 
         let dispatcher = Dispatcher {
@@ -75,9 +83,7 @@ where C: TypeConfig
             watchers: SpanMap::new(),
         };
 
-        C::spawn(dispatcher.main());
-
-        DispatcherHandle::new(tx)
+        (DispatcherHandle::new(tx), dispatcher.main())
     }
 
     async fn main(mut self) {

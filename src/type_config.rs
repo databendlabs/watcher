@@ -17,7 +17,6 @@
 use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::future::Future;
 use std::io;
 
 /// A key-value change event: (key, old_value, new_value)
@@ -81,14 +80,4 @@ where Self: Debug + Clone + Copy + Sized + 'static
     /// # Arguments
     /// * `delta` - The change in watcher count (positive for increment, negative for decrement)
     fn update_watcher_metrics(delta: i64);
-
-    /// Spawn a task in the provided runtime.
-    ///
-    /// This is used to spawn a [`Dispatcher`] task running in the background.
-    ///
-    /// [`Dispatcher`]: crate::dispatch::Dispatcher
-    fn spawn<T>(fut: T)
-    where
-        T: Future + Send + 'static,
-        T::Output: Send + 'static;
 }
